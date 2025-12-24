@@ -1,38 +1,75 @@
-'use client';
+"use client";
 
-import { useEffect } from 'react';
-import { checkSession, getMe } from '@/lib/api/clientApi';
-import { useAuthStore } from '@/lib/store/authStore';
+import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
 
-interface Props {
+import { checkSession, getMe, logout } from "@/lib/api/clientApi";
+import { useAuthStore } from "@/lib/store/authStore";
+import Loading from "@/app/loading";
+
+type Props = {
   children: React.ReactNode;
-}
+};
 
-const AuthProvider = ({ children }: Props) => {
-  const clearAuth = useAuthStore((state) => state.clearAuth);
-  const setAuth = useAuthStore((state) => state.setAuth);
+const PRIVATE_PREFIXES = ["/notes", "/profile"];
+
+export default function AuthProvider({ children }: Props) {
+  const pathname = usePathname();
+  const router = useRouter();
+
+  const isPrivateRoute = useMemo(
+    () => PRIVATE_PREFIXES.some((p) => pathname.startsWith(p)),
+    [pathname],
+  );
+
+  const setUser = useAuthStore((s) => s.setUser);
+  const clearIsAuthenticated = useAuthStore((s) => s.clearIsAuthenticated);
+
+  const [isChecking, setIsChecking] = useState(true);
 
   useEffect(() => {
-    const fetchSession = async () => {
-      const { user, isAuthenticated } = useAuthStore.getState();
-      if (isAuthenticated && user) return;
+    let cancelled = false;
 
-      const hasSession = await checkSession();
+    const run = async () => {
+      setIsChecking(true);
 
-      if (!hasSession) {
-        clearAuth();
-      } else {
-        const user = await getMe();
-        if (user) {
-          setAuth(user);
+      const ok = await checkSession();
+
+      if (!ok) {
+        clearIsAuthenticated();
+
+        if (isPrivateRoute) {
+          try {
+            await logout();
+          } catch {
+            // ignore
+          }
+          if (!cancelled) router.replace("/sign-in");
         }
+
+        if (!cancelled) setIsChecking(false);
+        return;
+      }
+
+      try {
+        const user = await getMe();
+        if (!cancelled) setUser(user);
+      } catch {
+        clearIsAuthenticated();
+        if (isPrivateRoute) router.replace("/sign-in");
+      } finally {
+        if (!cancelled) setIsChecking(false);
       }
     };
 
-    fetchSession();
-  }, [clearAuth, setAuth]);
+    run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isPrivateRoute, pathname, router, setUser, clearIsAuthenticated]);
+
+  if (isChecking && isPrivateRoute) return <Loading />;
 
   return <>{children}</>;
-};
-
-export default AuthProvider;
+}

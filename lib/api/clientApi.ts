@@ -1,84 +1,82 @@
-import axios from 'axios';
-import type { Note, NoteCreateInput } from '../../types/note';
-import { User } from '@/types/user';
+import type { AxiosError } from "axios";
+import { api } from "./api";
+import type { Note, NoteCreateInput, NoteTag } from "@/types/note";
+import type { User } from "@/types/user";
 
-const API_HOST = process.env.NEXT_PUBLIC_API_URL;
-
-export const nextServer = axios.create({
-  baseURL: `${API_HOST}/api`,
-  withCredentials: true,
-});
-
-interface NotesResponse {
+export type NotesResponse = {
   notes: Note[];
   totalPages: number;
-}
+};
+
 export async function fetchNotes(
   search: string,
   page: number,
-  tag?: string,
+  tag?: NoteTag,
 ): Promise<NotesResponse> {
-  const params: Record<string, string | number> = { perPage: 12, search, page, sortBy: 'created' };
+  const params: Record<string, string | number> = { perPage: 12, search, page };
   if (tag) params.tag = tag;
-  const { data } = await nextServer.get<NotesResponse>('/notes', { params });
+
+  const { data } = await api.get<NotesResponse>("/notes", { params });
+  return data;
+}
+
+export async function fetchNoteById(id: string): Promise<Note> {
+  const { data } = await api.get<Note>(`/notes/${id}`);
   return data;
 }
 
 export async function createNote(input: NoteCreateInput): Promise<Note> {
-  const { data } = await nextServer.post<Note>('/notes', input);
+  const { data } = await api.post<Note>("/notes", input);
   return data;
 }
+
 export async function deleteNote(id: string): Promise<Note> {
-  const { data } = await nextServer.delete<Note>(`/notes/${id}`);
-  return data;
-}
-export async function fetchNoteById(id: string): Promise<Note> {
-  const { data } = await nextServer.get<Note>(`/notes/${id}`);
+  const { data } = await api.delete<Note>(`/notes/${id}`);
   return data;
 }
 
-export interface RegisterData {
-  email: string;
-  password: string;
+export type RegisterData = { email: string; password: string };
+export type LoginData = { email: string; password: string };
+
+export async function register(payload: RegisterData): Promise<User> {
+
+  await api.post("/auth/register", payload);
+  return getMe();
 }
 
-export const register = async (registerData: RegisterData): Promise<User> => {
-  const { data } = await nextServer.post<User>('/auth/register', registerData);
-
-  return data;
-};
-
-export interface LoginData {
-  email: string;
-  password: string;
-}
-
-export async function login(loginData: LoginData) {
-  const { data } = await nextServer.post<User>('/auth/login', loginData);
-  return data;
-}
-
-export const checkSession = async (): Promise<boolean> => {
-  const { status, data } = await nextServer.get<{ message: string }>('/auth/session', {
-    validateStatus: () => true,
-  });
-  return status === 200 && data?.message === 'Session refreshed successfully';
-};
-
-export async function getMe(): Promise<User> {
-  const { data } = await nextServer.get<User>(`/users/me`);
-  return data;
+export async function login(payload: LoginData): Promise<User> {
+  await api.post("/auth/login", payload);
+  return getMe();
 }
 
 export async function logout(): Promise<void> {
-  await nextServer.post('/auth/logout');
+  await api.post("/auth/logout");
 }
 
-export interface UpdateMeData {
-  username: string;
+/**
+ * Returns true if there is an active session OR it was refreshed via refreshToken.
+ * (app/api/auth/session returns { success: boolean } with 200 status)
+ */
+export async function checkSession(): Promise<boolean> {
+  const { data } = await api.get<{ success: boolean }>("/auth/session", {
+    validateStatus: () => true,
+  });
+  return Boolean(data?.success);
 }
 
-export async function updateMe(input: UpdateMeData): Promise<User> {
-  const { data } = await nextServer.patch<User>('/users/me', input);
+export async function getMe(): Promise<User> {
+  const { data } = await api.get<User>("/users/me");
   return data;
+}
+
+export type UpdateMeData = { username: string };
+export async function updateMe(input: UpdateMeData): Promise<User> {
+  const { data } = await api.patch<User>("/users/me", input);
+  return data;
+}
+
+
+export function getErrorMessage(error: unknown): string {
+  const err = error as AxiosError<{ error?: string; message?: string }>;
+  return err?.response?.data?.error ?? err?.response?.data?.message ?? "Something went wrong";
 }

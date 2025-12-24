@@ -1,43 +1,45 @@
+"use client";
 
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 
-'use client';
+import { login, type LoginData } from "@/lib/api/clientApi";
+import { useAuthStore } from "@/lib/store/authStore";
 
-import { useRouter } from 'next/navigation';
-import css from './SignInPage.module.css';
-import { useState } from 'react';
-import { login, LoginData } from '@/lib/api/clientApi';
-import { ApiError } from '@/app/api/types';
-import { useAuthStore } from '@/lib/store/authStore';
+import css from "./SignInPage.module.css";
+
+type ApiError = {
+  message?: string;
+  response?: {
+    status?: number;
+    data?: { error?: string };
+  };
+};
 
 export default function SignInPage() {
   const router = useRouter();
-  const { setAuth } = useAuthStore();
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string>("");
+
+  const setUser = useAuthStore((s) => s.setUser);
 
   const handleSignIn = async (formData: FormData) => {
-    setError(null);
+    setError("");
 
-    const loginData: LoginData = {
-      email: (formData.get('email') as string) ?? '',
-      password: (formData.get('password') as string) ?? '',
+    const payload: LoginData = {
+      email: String(formData.get("email") ?? ""),
+      password: String(formData.get("password") ?? ""),
     };
 
     try {
-      const user = await login(loginData);
-      setAuth(user);
-
-      if (user) {
-        router.push('/profile');
-      }
+      const user = await login(payload);
+      setUser(user);
+      router.push("/profile");
     } catch (err) {
       const apiErr = err as ApiError;
-
-      const message =
-        apiErr.response?.data?.error ?? apiErr.message ?? 'Something went wrong. Please try again.';
-
-      setError(message);
+      setError(apiErr.response?.data?.error ?? apiErr.message ?? "Login failed");
     }
   };
+
   return (
     <main className={css.mainContent}>
       <form className={css.form} action={handleSignIn}>
@@ -50,7 +52,13 @@ export default function SignInPage() {
 
         <div className={css.formGroup}>
           <label htmlFor="password">Password</label>
-          <input id="password" type="password" name="password" className={css.input} required />
+          <input
+            id="password"
+            type="password"
+            name="password"
+            className={css.input}
+            required
+          />
         </div>
 
         <div className={css.actions}>
@@ -59,7 +67,7 @@ export default function SignInPage() {
           </button>
         </div>
 
-        <p className={css.error}>{error}</p>
+        {error && <p className={css.error}>{error}</p>}
       </form>
     </main>
   );

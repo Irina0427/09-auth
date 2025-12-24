@@ -4,15 +4,15 @@ import Link from "next/link";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import type { Note } from "@/types/note";
-import { deleteNote } from "@/lib/api";
+import { deleteNote } from "@/lib/api/clientApi";
 
 import css from "./NoteList.module.css";
 
-interface NoteListProps {
+type Props = {
   notes: Note[];
-}
+};
 
-export default function NoteList({ notes }: NoteListProps) {
+export default function NoteList({ notes }: Props) {
   const queryClient = useQueryClient();
 
   const { mutate: removeNote, isPending } = useMutation({
@@ -22,36 +22,30 @@ export default function NoteList({ notes }: NoteListProps) {
     },
   });
 
-  if (!notes.length) {
-    return <p className={css.empty}>No notes found</p>;
-  }
-
   return (
     <ul className={css.list}>
       {notes.map((note) => (
-        <li key={note.id} className={css.item}>
-          <div className={css.header}>
-            <h2 className={css.title}>{note.title}</h2>
-            <span className={css.tag}>{note.tag}</span>
-          </div>
-
+        <li key={note.id} className={css.listItem}>
+          <h2 className={css.title}>{note.title}</h2>
           <p className={css.content}>{note.content}</p>
 
-          <p className={css.date}>{new Date(note.createdAt).toLocaleDateString()}</p>
+          <div className={css.footer}>
+            <span className={css.tag}>{note.tag}</span>
 
-          <div className={css.actions}>
-            <Link href={`/notes/${note.id}`} className={css.link}>
-              View details
-            </Link>
+            <div className={css.actions}>
+              <Link className={css.detailsLink} href={`/notes/${note.id}`}>
+                Переглянути деталі
+              </Link>
 
-            <button
-              type="button"
-              className={css.deleteButton}
-              onClick={() => removeNote(note.id)}
-              disabled={isPending}
-            >
-              Delete
-            </button>
+              <button
+                type="button"
+                className={css.deleteButton}
+                onClick={() => removeNote(note.id)}
+                disabled={isPending}
+              >
+                Видалити
+              </button>
+            </div>
           </div>
         </li>
       ))}

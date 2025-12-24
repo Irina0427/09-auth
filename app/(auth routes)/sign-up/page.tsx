@@ -1,45 +1,45 @@
-'use client';
+"use client";
 
-import { register, RegisterData } from '@/lib/api/clientApi';
-import css from './SignUpPage.module.css';
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { ApiError } from '@/app/api/types';
-import { useAuthStore } from '@/lib/store/authStore';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
 
-const SignUpPage = () => {
+import { register, type RegisterData } from "@/lib/api/clientApi";
+import { useAuthStore } from "@/lib/store/authStore";
+
+import css from "./SignUpPage.module.css";
+
+type ApiError = {
+  message?: string;
+  response?: {
+    status?: number;
+    data?: { error?: string };
+  };
+};
+
+export default function SignUpPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
-  const { setAuth } = useAuthStore();
+
+  const setUser = useAuthStore((s) => s.setUser);
 
   const handleSignUp = async (formData: FormData) => {
     setError(null);
 
-    const registerData: RegisterData = {
-      email: (formData.get('email') as string) ?? '',
-      password: (formData.get('password') as string) ?? '',
+    const payload: RegisterData = {
+      email: String(formData.get("email") ?? ""),
+      password: String(formData.get("password") ?? ""),
     };
 
     try {
-      const user = await register(registerData);
-      setAuth(user);
-
-      if (user) {
-        router.push('/profile');
-      }
+      const user = await register(payload);
+      setUser(user);
+      router.push("/profile");
     } catch (err) {
       const apiErr = err as ApiError;
       const status = apiErr.response?.status;
 
-      if (status === 409) {
-        setError('User with this email already exists.');
-      } else {
-        setError(
-          apiErr.response?.data?.error ??
-            apiErr.message ??
-            'Something went wrong. Please try again.',
-        );
-      }
+      if (status === 409) setError("User with this email already exists.");
+      else setError(apiErr.response?.data?.error ?? apiErr.message ?? "Something went wrong.");
     }
   };
 
@@ -47,6 +47,7 @@ const SignUpPage = () => {
     <main className={css.mainContent}>
       <form className={css.form} action={handleSignUp}>
         <h1 className={css.formTitle}>Sign up</h1>
+
         <div className={css.formGroup}>
           <label htmlFor="email">Email</label>
           <input id="email" type="email" name="email" className={css.input} required />
@@ -54,7 +55,13 @@ const SignUpPage = () => {
 
         <div className={css.formGroup}>
           <label htmlFor="password">Password</label>
-          <input id="password" type="password" name="password" className={css.input} required />
+          <input
+            id="password"
+            type="password"
+            name="password"
+            className={css.input}
+            required
+          />
         </div>
 
         <div className={css.actions}>
@@ -67,6 +74,4 @@ const SignUpPage = () => {
       </form>
     </main>
   );
-};
-
-export default SignUpPage;
+}

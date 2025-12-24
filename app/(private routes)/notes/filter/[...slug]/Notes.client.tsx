@@ -1,75 +1,69 @@
+"use client";
 
-'use client';
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
 
-import { useState, useEffect } from 'react';
-import { useQuery, keepPreviousData } from '@tanstack/react-query';
-import { useDebouncedCallback } from 'use-debounce';
-import { toast } from 'react-hot-toast';
+import { fetchNotes } from "@/lib/api/clientApi";
+import type { Tag } from "@/types/note";
 
-import { fetchNotes } from '@/lib/api/clientApi';
-import NoteList from '@/components/NoteList/NoteList';
-import SearchBox from '@/components/SearchBox/SearchBox';
-import Pagination from '@/components/Pagination/Pagination';
-import css from './Notes.module.css';
-import { NoteTag } from '@/types/note';
-import Link from 'next/link';
+import SearchBox from "@/components/SearchBox/SearchBox";
+import Pagination from "@/components/Pagination/Pagination";
+import NoteList from "@/components/NoteList/NoteList";
+import { useDebounce } from "@/components/hooks/UseDebounce";
 
-interface Props {
-  initialTag?: NoteTag;
-}
+import Loading from "@/app/loading";
+import Error from "./error";
+
+import css from "./Notes.module.css";
+
+type Props = {
+  initialTag?: Tag;
+};
 
 export default function NotesClient({ initialTag }: Props) {
-  const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
-  const tag = initialTag;
+  const [search, setSearch] = useState("");
+  const [tag, setTag] = useState<Tag | undefined>(initialTag);
 
-  const handleSearch = useDebouncedCallback((value: string) => {
-    setSearch(value);
-    setPage(1);
-  }, 400);
-
-  const { data, isLoading, isError, isFetching } = useQuery({
-    queryKey: ['notes', search || undefined, page, tag],
-    queryFn: () => fetchNotes(search, page, tag),
-    placeholderData: keepPreviousData,
-    retry: false,
-    throwOnError: true,
-  });
-
-  const { notes = [], totalPages = 0 } = data ?? {};
+  const debouncedSearch = useDebounce(search, 500);
 
   useEffect(() => {
-    if (!isLoading && !isError && !isFetching && search.trim() && notes.length === 0) {
-      toast.error('No notes found for your request.');
-    }
-  }, [search, isLoading, isError, isFetching, notes.length]);
+    setPage(1);
+  }, [debouncedSearch, tag]);
+
+  const { data, isLoading, isError, isSuccess, error } = useQuery({
+    queryKey: ["notes", { search: debouncedSearch, page, tag: tag ?? "" }],
+    queryFn: () => fetchNotes(debouncedSearch, page, tag),
+    placeholderData: keepPreviousData,
+    refetchOnMount: false,
+  });
+
+  const notes = data?.notes ?? [];
+  const totalPages = data?.totalPages ?? 1;
+
+  const handleSearchChange = (value: string) => setSearch(value);
+
+
 
   return (
-    <div className={css.app}>
-      <header className={css.toolbar}>
-        <SearchBox onChange={handleSearch} defaultValue={search} />
-        {totalPages > 1 && (
-          <Pagination
-            pageCount={totalPages}
-            currentPage={page}
-            onPageChange={(p) => !isFetching && setPage(p)}
-          />
-        )}
+    <div className={css.wrapper}>
+      <div className={css.topBar}>
+        <SearchBox value={search} onChange={handleSearchChange} />
+
         <Link href="/notes/action/create" className={css.button}>
-          Create note +
+          Створити нотатку +
         </Link>
-      </header>
+      </div>
 
-      {!isLoading && isFetching && (
-        <div className={css.thinProgress} role="progressbar" aria-busy="true" />
+      {isSuccess && totalPages > 1 && (
+        <Pagination page={page} totalPages={totalPages} onChange={setPage} />
       )}
 
-      {!isLoading && !isError && !isFetching && notes.length === 0 && (
-        <p className={css.status}>No notes found.</p>
-      )}
+      {isLoading && <Loading />}
+      {isError && <Error error={error} />}
 
-      {notes.length > 0 && <NoteList notes={notes} />}
-
+      <NoteList notes={notes} />
     </div>
   );
 }
