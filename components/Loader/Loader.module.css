@@ -1,0 +1,28 @@
+.loaderContainer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 200px;
+}
+
+.text {
+    font-size: 18px;
+    font-weight: 500;
+    color: #0a66c2;
+    animation: pulse 1.5s ease-in-out infinite;
+    text-align: center;
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 0.4;
+    }
+
+    50% {
+        opacity: 1;
+    }
+
+    100% {
+        opacity: 0.4;
+    }
+}

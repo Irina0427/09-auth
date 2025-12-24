@@ -1,0 +1,15 @@
+.text {
+    color: #d93025;
+    font-size: 18px;
+    text-align: center;
+    margin-top: 24px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+}
+
+.icon {
+    display: block;
+    font-size: 32px;
+    margin: 0 auto 8px auto;
+    color: #d93025;
+}
