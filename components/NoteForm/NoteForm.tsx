@@ -1,109 +1,99 @@
-"use client";
+'use client';
 
-import { useRouter } from "next/navigation";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import css from "./NoteForm.module.css";
-
-import { createNote } from "@/lib/api";
-import { useNoteStore, initialDraft } from "@/lib/store/noteStore";
-import type { Tag } from "@/types/note";
+import css from './NoteForm.module.css';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'react-hot-toast';
+import { createNote } from '@/lib/api/clientApi';
+import type { NoteCreateInput } from '../../types/note';
+import { NOTES_TAGS } from '@/lib/constants';
+import { useNoteDraft } from '@/lib/store/noteStore';
+import { ChangeEvent } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function NoteForm() {
+  const { draft, setDraft, clearDraft } = useNoteDraft();
+  const qc = useQueryClient();
   const router = useRouter();
-  const queryClient = useQueryClient();
 
-  const draft = useNoteStore((s) => s.draft);
-  const setDraft = useNoteStore((s) => s.setDraft);
-  const clearDraft = useNoteStore((s) => s.clearDraft);
-
-  const { mutate, isPending } = useMutation({
-    mutationFn: createNote,
+  const createMut = useMutation({
+    mutationFn: (values: NoteCreateInput) => createNote(values),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["notes"] });
       clearDraft();
-      router.back();
+      qc.invalidateQueries({ queryKey: ['notes'] });
+      toast.success('Note created');
+      router.push('/notes/filter/all');
     },
+    onError: () => toast.error('Failed to create note'),
   });
 
-  const onChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
-  ) => {
-    const { name, value } = e.target;
-
-    if (name === "title") setDraft({ title: value });
-    if (name === "content") setDraft({ content: value });
-    if (name === "tag") setDraft({ tag: value as Tag });
+  const handleSubmit = (formData: FormData) => {
+    const noteData = Object.fromEntries(formData) as unknown as NoteCreateInput;
+    createMut.mutate(noteData);
   };
 
-  const action = (formData: FormData) => {
-    const title = String(formData.get("title") ?? "").trim();
-    const content = String(formData.get("content") ?? "");
-    const tag = String(formData.get("tag") ?? "Todo") as Tag;
-
-    mutate({ title, content, tag });
+  const handleChange = (
+    e: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>,
+  ) => {
+    const { name, value } = e.target;
+    setDraft({ ...draft, [name]: value });
   };
 
   return (
-    <form className={css.form} action={action}>
-      <div className={css.formGroup}>
-        <label htmlFor="title">Title</label>
-        <input
-          className={css.input}
-          id="title"
-          name="title"
-          defaultValue={draft?.title ?? initialDraft.title}
-          required
-          minLength={3}
-          maxLength={50}
-          onChange={onChange}
-        />
-      </div>
+    <div className={css.page}>
+      <div className={css.card}>
+        <h1 className={css.title}>Create note</h1>
 
-      <div className={css.formGroup}>
-        <label htmlFor="content">Content</label>
-        <textarea
-          className={css.textarea}
-          id="content"
-          name="content"
-          rows={8}
-          defaultValue={draft?.content ?? initialDraft.content}
-          maxLength={500}
-          onChange={onChange}
-        />
-      </div>
+        <form className={css.form} action={handleSubmit}>
+          <div className={css.formGroup}>
+            <label htmlFor="title">Title</label>
+            <input
+              id="title"
+              name="title"
+              className={css.input}
+              value={draft.title}
+              onChange={handleChange}
+              required
+            />
+          </div>
 
-      <div className={css.formGroup}>
-        <label htmlFor="tag">Tag</label>
-        <select
-          className={css.select}
-          id="tag"
-          name="tag"
-          defaultValue={draft?.tag ?? initialDraft.tag}
-          onChange={onChange}
-        >
-          <option value="Todo">Todo</option>
-          <option value="Work">Work</option>
-          <option value="Personal">Personal</option>
-          <option value="Meeting">Meeting</option>
-          <option value="Shopping">Shopping</option>
-        </select>
-      </div>
+          <div className={css.formGroup}>
+            <label htmlFor="content">Content</label>
+            <textarea
+              id="content"
+              name="content"
+              className={css.textarea}
+              value={draft.content}
+              onChange={handleChange}
+            />
+          </div>
 
-      <div className={css.actions}>
-        <button
-          type="button"
-          className={css.cancelButton}
-          onClick={() => router.back()}
-        >
-          Cancel
-        </button>
+          <div className={css.formGroup}>
+            <label htmlFor="tag">Tag</label>
+            <select
+              id="tag"
+              name="tag"
+              className={css.select}
+              value={draft.tag}
+              onChange={handleChange}
+            >
+              {NOTES_TAGS.map((tag) => (
+                <option key={tag} value={tag}>
+                  {tag}
+                </option>
+              ))}
+            </select>
+          </div>
 
-        <button type="submit" className={css.submitButton} disabled={isPending}>
-          Create note
-        </button>
+          <div className={css.actions}>
+            <button type="button" className={css.cancelButton} onClick={() => router.back()}>
+              Cancel
+            </button>
+            <button type="submit" className={css.submitButton} disabled={createMut.isPending}>
+              {createMut.isPending ? 'Creating...' : 'Create note'}
+            </button>
+          </div>
+        </form>
       </div>
-    </form>
+    </div>
   );
 }

@@ -1,1 +1,1 @@
-export const ALL_NOTES = "all";
+export const NOTES_TAGS=["Todo" , "Work" , "Personal" , "Meeting" , "Shopping"]
