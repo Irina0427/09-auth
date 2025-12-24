@@ -15,37 +15,47 @@ type Props = {
 export default function NoteList({ notes }: Props) {
   const queryClient = useQueryClient();
 
-  const { mutate: removeNote, isPending } = useMutation({
+  const { mutate: handleDelete, isPending } = useMutation({
     mutationFn: (id: string) => deleteNote(id),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["notes"] });
     },
   });
 
+  if (!notes.length) {
+    return <p className={css.empty}>Нотаток поки немає</p>;
+  }
+
   return (
     <ul className={css.list}>
       {notes.map((note) => (
-        <li key={note.id} className={css.listItem}>
-          <h2 className={css.title}>{note.title}</h2>
+        <li key={note.id} className={css.item}>
+          <div className={css.header}>
+            <h2 className={css.title}>{note.title}</h2>
+            <span className={css.tag}>{note.tag}</span>
+          </div>
+
           <p className={css.content}>{note.content}</p>
 
-          <div className={css.footer}>
-            <span className={css.tag}>{note.tag}</span>
+          {note.createdAt && (
+            <p className={css.date}>
+              {new Date(note.createdAt).toLocaleDateString()}
+            </p>
+          )}
 
-            <div className={css.actions}>
-              <Link className={css.detailsLink} href={`/notes/${note.id}`}>
-                Переглянути деталі
-              </Link>
+          <div className={css.actions}>
+            <Link href={`/notes/${note.id}`} className={css.link}>
+              Переглянути
+            </Link>
 
-              <button
-                type="button"
-                className={css.deleteButton}
-                onClick={() => removeNote(note.id)}
-                disabled={isPending}
-              >
-                Видалити
-              </button>
-            </div>
+            <button
+              type="button"
+              className={css.deleteButton}
+              onClick={() => handleDelete(note.id)}
+              disabled={isPending}
+            >
+              Видалити
+            </button>
           </div>
         </li>
       ))}
