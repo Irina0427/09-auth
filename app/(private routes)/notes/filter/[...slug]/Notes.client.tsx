@@ -32,7 +32,13 @@ export default function NotesClient({ initialTag }: Props) {
     setPage(1);
   }, [debouncedSearch, tag]);
 
-  const { data, isLoading, isError, isSuccess, error } = useQuery({
+  const {
+    data,
+    isLoading,
+    isError,
+    isSuccess,
+    error,
+  } = useQuery({
     queryKey: ["notes", { search: debouncedSearch, page, tag: tag ?? "" }],
     queryFn: () => fetchNotes(debouncedSearch, page, tag),
     placeholderData: keepPreviousData,
@@ -44,8 +50,6 @@ export default function NotesClient({ initialTag }: Props) {
 
   const handleSearchChange = (value: string) => setSearch(value);
 
-
-
   return (
     <div className={css.wrapper}>
       <div className={css.topBar}>
@@ -56,14 +60,18 @@ export default function NotesClient({ initialTag }: Props) {
         </Link>
       </div>
 
-      {isSuccess && totalPages > 1 && (
-        <Pagination page={page} totalPages={totalPages} onChange={setPage} />
-      )}
-
       {isLoading && <Loading />}
       {isError && <Error error={error} />}
 
-      <NoteList notes={notes} />
+      {isSuccess && notes.length > 0 && (
+        <>
+          <NoteList notes={notes} />
+
+          {totalPages > 1 && (
+            <Pagination page={page} totalPages={totalPages} onChange={setPage} />
+          )}
+        </>
+      )}
     </div>
   );
 }
