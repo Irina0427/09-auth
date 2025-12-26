@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { api } from '../../api';
 import { parse } from 'cookie';
 import { isAxiosError } from 'axios';
+import { logErrorResponse } from '../../_utils/utils';
 
 export async function POST(req: Request) {
   try {
@@ -10,48 +12,45 @@ export async function POST(req: Request) {
 
     const setCookie = apiRes.headers['set-cookie'];
 
-    // Якщо бекенд не повернув куки — 401
     if (!setCookie) {
-      return new NextResponse(
-        JSON.stringify({ message: 'Unauthorized' }),
-        { status: 401 }
-      );
+      return new NextResponse(JSON.stringify({ message: 'Unauthorized' }), {
+        status: 401,
+      });
     }
 
-    // Формуємо відповідь з оригінальним body і статусом
-    const response = new NextResponse(
-      JSON.stringify(apiRes.data),
-      { status: apiRes.status }
-    );
+    const response = new NextResponse(JSON.stringify(apiRes.data), {
+      status: apiRes.status,
+    });
 
     const cookieArray = Array.isArray(setCookie) ? setCookie : [setCookie];
 
-for (const cookieStr of cookieArray) {
-  const parsed = parse(cookieStr);
-  const name = Object.keys(parsed)[0];
-  const value = parsed[name];
+    for (const cookieStr of cookieArray) {
+      const parsed = parse(cookieStr);
+      const name = Object.keys(parsed)[0];
+      const value = parsed[name];
 
-  if (!value) continue;
+      if (!value) continue;
 
-  response.cookies.set(name, value, {
-    path: parsed.Path,
-    expires: parsed.Expires ? new Date(parsed.Expires) : undefined,
-    maxAge: parsed['Max-Age'] ? Number(parsed['Max-Age']) : undefined,
-  });
-}
-
+      response.cookies.set(name, value, {
+        path: parsed.Path,
+        expires: parsed.Expires ? new Date(parsed.Expires) : undefined,
+        maxAge: parsed['Max-Age'] ? Number(parsed['Max-Age']) : undefined,
+      });
+    }
 
     return response;
   } catch (error) {
     if (isAxiosError(error)) {
+      logErrorResponse(error.response?.data);
       return new NextResponse(
-        JSON.stringify(error.response?.data),
-        { status: error.response?.status || 500 }
+        JSON.stringify({ error: error.response?.data?.message ?? 'Login failed' }),
+        { status: error.response?.status ?? 500 }
       );
     }
 
+    logErrorResponse({ message: (error as Error).message });
     return new NextResponse(
-      JSON.stringify({ message: 'Internal Server Error' }),
+      JSON.stringify({ error: 'Internal server error' }),
       { status: 500 }
     );
   }
