@@ -12,15 +12,21 @@ type Props = {
 };
 
 const PRIVATE_PREFIXES = ["/notes", "/profile"];
+const PUBLIC_PAGES = ["/sign-in", "/sign-up"];
 
 export default function AuthProvider({ children }: Props) {
   const pathname = usePathname();
   const router = useRouter();
 
-  const isPrivateRoute = useMemo(
-    () => PRIVATE_PREFIXES.some((p) => pathname.startsWith(p)),
-    [pathname],
-  );
+  const isPrivateRoute = useMemo(() => {
+    if (!pathname) return false;
+    return PRIVATE_PREFIXES.some((p) => pathname.startsWith(p));
+  }, [pathname]);
+
+  const isPublicPage = useMemo(() => {
+    if (!pathname) return false;
+    return PUBLIC_PAGES.some((p) => pathname.startsWith(p));
+  }, [pathname]);
 
   const setUser = useAuthStore((s) => s.setUser);
   const clearIsAuthenticated = useAuthStore((s) => s.clearIsAuthenticated);
@@ -35,14 +41,14 @@ export default function AuthProvider({ children }: Props) {
 
       const ok = await checkSession();
 
-      if (!ok) {
+      if (ok === false) {
         clearIsAuthenticated();
 
         if (isPrivateRoute) {
           try {
             await logout();
           } catch {
-            // ignore
+      
           }
           if (!cancelled) router.replace("/sign-in");
         }
@@ -54,6 +60,10 @@ export default function AuthProvider({ children }: Props) {
       try {
         const user = await getMe();
         if (!cancelled) setUser(user);
+
+        if (!cancelled && isPublicPage) {
+          router.replace("/profile");
+        }
       } catch {
         clearIsAuthenticated();
         if (isPrivateRoute) router.replace("/sign-in");
@@ -67,7 +77,7 @@ export default function AuthProvider({ children }: Props) {
     return () => {
       cancelled = true;
     };
-  }, [isPrivateRoute, pathname, router, setUser, clearIsAuthenticated]);
+  }, [isPrivateRoute, isPublicPage, pathname, router, setUser, clearIsAuthenticated]);
 
   if (isChecking && isPrivateRoute) return <Loading />;
 
