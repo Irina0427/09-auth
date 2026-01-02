@@ -53,10 +53,6 @@ export async function logout(): Promise<void> {
   await api.post("/auth/logout");
 }
 
-/**
- * Returns true if there is an active session OR it was refreshed via refreshToken.
- * (app/api/auth/session returns { success: boolean } with 200 status)
- */
 export async function checkSession(): Promise<boolean> {
   const { data } = await api.get<{ success: boolean }>("/auth/session", {
     validateStatus: () => true,
